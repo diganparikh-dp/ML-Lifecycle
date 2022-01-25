@@ -33,7 +33,7 @@ response.content
 
 create_webhook_endpoint = f"{cmr_host}/api/2.0/mlflow/registry-webhooks/create"
 
-job_id = 150888
+job_id = 316538
 releases_job_spec = {
   'job_id': job_id,
   'access_token': cmr_token
@@ -56,7 +56,7 @@ response.content
 test_webhook_endpoint = f"{cmr_host}/api/2.0/mlflow/registry-webhooks/test"
 
 test_webhook_doc = {
-  'id': '01bef2971d7348a7b534f1e7ee8ca4e3',
+  'id': 'd31f3ad962ca49cb8b7e5cbe6b968c62',
   'event': 'MODEL_VERSION_TRANSITIONED_STAGE'
 }
 response = requests.post( test_webhook_endpoint, headers=auth_header, data=json.dumps(test_webhook_doc) )

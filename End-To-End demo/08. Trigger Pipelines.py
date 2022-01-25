@@ -24,7 +24,7 @@ import base64
 
 org_id = 'tristannixon-databricks'
 project_id = 'MLOps%20Webinar'
-devops_token = dbutils.secrets.get(scope='mlops_webinar',key='Devops_Token')
+devops_token = dbutils.secrets.get(scope='mlops',key='devops_Token')
 
 releases_uri = f"https://vsrm.dev.azure.com/{org_id}/{project_id}/_apis/release/releases?api-version=6.0"
 encoded_token = base64.b64encode(bytes(f":{devops_token}", 'utf-8')).decode("utf-8")
@@ -42,7 +42,7 @@ def trigger_release_pipeline( pipeline_def_id ):
 
 # COMMAND ----------
 
-test_pipeline_id = 2
+test_pipeline_id = 4
 
 if ( event_message_dict['event'] == 'MODEL_VERSION_TRANSITIONED_STAGE' ) \
    and \

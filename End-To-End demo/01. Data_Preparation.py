@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
 # MAGIC 
-# MAGIC **PART 1/4**
+# MAGIC **PART 1/9**
 # MAGIC * Data Preparation / Data Engineering
 
 # COMMAND ----------

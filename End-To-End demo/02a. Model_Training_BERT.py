@@ -3,7 +3,7 @@
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
 # MAGIC _demo for Corvel_
 # MAGIC 
-# MAGIC **PART 2a/4 - Model Training **
+# MAGIC **PART 2a/9 - Model Training **
 # MAGIC * Fine-Tune a BERT model 
 # MAGIC * Log artifacts to MLflow/Model Registry
 # MAGIC * _Build Feature Sequences and Push to Feature Store_
@@ -135,9 +135,9 @@ from sklearn.preprocessing import LabelEncoder
 
 enc_sk = LabelEncoder().fit(np.array(class_names))
 
-# Save label encoder
-with open(artifacts_global["LABEL_ENCODER_PATH"],'wb') as f:
-    pickle.dump(enc_sk,f)
+# Save label encoder (OPTIONNAL)
+# with open(artifacts_global["LABEL_ENCODER_PATH"],'wb') as f:
+#     pickle.dump(enc_sk,f)
 
 # COMMAND ----------
 

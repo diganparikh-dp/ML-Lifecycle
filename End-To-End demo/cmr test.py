@@ -2,8 +2,8 @@
 # MAGIC %md
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
 # MAGIC 
-# MAGIC **PART 3/4 - Model Deployment **
-# MAGIC * Log custom artifact to MLflow
+# MAGIC **PART 3/9 - Model Deployment **
+# MAGIC * Log custom artifact to MLflow's central model registry
 # MAGIC * Expose as REST/API
 # MAGIC * _Push to AKS_
 
@@ -26,6 +26,8 @@ dbutils.widgets.text("SAVE_DIR","/dbfs/mnt/oetrta/diganparikh/corvel/corvel_cont
 dbutils.widgets.text("INPUT_DATA", "/mnt/oetrta/diganparikh/corvel/corvel_contents/iter6.14_pocsample.csv", "Path to input OCR + label file")
 dbutils.widgets.text("USE_CASE", 'symbeo_doctyping', "Use-Case Name")
 dbutils.widgets.text("PRE_TRAINED_MODEL_NAME","emilyalsentzer/Bio_ClinicalBERT", "Pre-Trained BERT model to load")
+dbutils.widgets.text("MODEL_NAME","DocType", "Model Name")
+dbutils.widgets.text("MLFLOW_CENTRAL_URI","databricks://ml-scope:dp", "Central Model Registry URI")
 
 # COMMAND ----------
 
@@ -87,15 +89,15 @@ artifacts_global = {
 # COMMAND ----------
 
 # DBTITLE 1,Pull models from MLflow and save to temp/global artifact location for creating custom artifact
-# bert_model_name = f"CORVEL_BERT_{USE_CASE}"
-# lstm_model_name = f"CORVEL_LSTM_{USE_CASE}"
-model_name = 'DocType_PyFunc_Test'
+bert_model_name = f"CORVEL_BERT_{USE_CASE}"
+lstm_model_name = f"CORVEL_LSTM_{USE_CASE}"
 
-bert_model_loaded = mlflow.pytorch.load_model(f"models:/{model_name}/Production")
-#lstm_model_loaded = mlflow.pytorch.load_model(f"models:/{lstm_model_name}/Production")
+bert_model_loaded = mlflow.pytorch.load_model(f"models:/{bert_model_name}/Production")
+# lstm_model_loaded = mlflow.pytorch.load_model(f"models:/{lstm_model_name}/Production")
 
-torch.save(bert_model_loaded.state_dict(), artifacts_global["BERT_MODEL_PATH"])
-lstm_model_loaded.save(artifacts_global["LSTM_MODEL_PATH"])
+# Save to global/tmp path for pushing to central Model-Registry
+# torch.save(bert_model_loaded.state_dict(), artifacts_global["BERT_MODEL_PATH"])
+# lstm_model_loaded.save(artifacts_global["LSTM_MODEL_PATH"])
 
 # COMMAND ----------
 
@@ -354,57 +356,8 @@ display(out_df)
 
 # COMMAND ----------
 
-
-
-# COMMAND ----------
-
-
-
-# COMMAND ----------
-
-from mlflow.tracking import MlflowClient
-import mlflow 
-
-expirement_location = "/Users/digan.parikh@databricks.com/Customers/Corvel/DocType_PyFunc_ToShare"
-
-mlflow.set_experiment(expirement_location)
-mlflow_experiments = mlflow.get_experiment_by_name(expirement_location)
-
-
-# COMMAND ----------
-
-client = MlflowClient()
-experiment_id = mlflow_experiments.experiment_id
-experiment_df = spark.read.format("mlflow-experiment").load(experiment_id)
-experiment_df.createOrReplaceTempView("DocType_model_experiment")
-display(experiment_df)
-
-# COMMAND ----------
-
-best_run = experiment_df
-selected_experiment_row = best_run.first()
-selected_experiment_id = selected_experiment_row['experiment_id']
-selected_run_id = selected_experiment_row['run_id']
-selected_artifact_uri = selected_experiment_row['artifact_uri']
-
-print(f"Selected experiment ID: {selected_experiment_id}")
-print(f"Selected run ID: {selected_run_id}")
-print(f"Selected artifact URI: {selected_artifact_uri}")
-
-
-# COMMAND ----------
-
-registry_uri = 'databricks://ml-scope:dp'
-model_name = 'DocType_PyFunc_New'
-selected_artifact_path = 'model'
-mlflow.set_registry_uri(registry_uri)
-model_uri = f"runs:/{selected_run_id}/{selected_artifact_path}"
-mlflow.register_model(model_uri=model_uri, name=model_name)
-
-# COMMAND ----------
-
 # MAGIC %md
-# MAGIC ## Log model to MLflow Model Registry
+# MAGIC ## Log model to MLflow's Central Model Registry
 
 # COMMAND ----------
 
@@ -416,14 +369,20 @@ signature = mlflow.models.infer_signature(
 
 # COMMAND ----------
 
-model_name = "DocType_PyFunc_Test"
-with mlflow.start_run(run_name='DocType_PyFunc'):
+# DBTITLE 1,Set MLFlow to point to Central Server
+registry_uri = dbutils.widgets.get("MLFLOW_CENTRAL_URI")
+mlflow.set_registry_uri(registry_uri)
+
+# COMMAND ----------
+
+model_name = dbutils.widgets.get("MODEL_NAME")
+with mlflow.start_run(run_name=f"{USE_CASE}_{model_name}"):
     
     mlflow.pyfunc.log_model(
-        model_name,
+        "model",
         python_model=DocTypeWrapper(),           
         conda_env=conda_env,    
-        registered_model_name="DocType_PyFunc_Test",
+        registered_model_name=model_name,
         artifacts=trained_wrappedModel.artifacts_global,
         signature= signature
       )
@@ -498,9 +457,12 @@ test_df = pd.DataFrame({'Request':['hello world']})
 
 # COMMAND ----------
 
-model_name = "DocType_PyFunc_Test"
+model_name = dbutils.widgets.get("MODEL_NAME")
 latest_model_version = "1"
-out_df = score_model(test_df, model_name, "1")
+
+# COMMAND ----------
+
+out_df = score_model(test_df, model_name, latest_model_version)
 
 # COMMAND ----------
 
@@ -518,7 +480,7 @@ display(out_df)
 test_df = pd.DataFrame({'Request':["City of Fort Matthews-EC-TT  CarelQ  Automated to Georgia - Site 11  A CORVEL NETWORK  CarelQ Transportation  Invoice Date: 01/01/2020  Corvel Scan Date: 02/02/2020  Transportation /Translation Invoice :  123456  Account Group:  Patient  Claim #  Date of Service  ItemId  Item Name  Quantity  Rate  Charge  Elden , Isiah, Rili  1111-WC-  1-12-18  TRANS-AMB ROUND  TRANSPORTATION- ROUND TRIP TOTAL  $336.07  $336.07  18-0000088  TRIP  9AM FR 121 HELM ST FORT Matthews CA TO ADVANCED  Winterhill Lodge 2002 361 BALTHAM ST PORT CHARLOTTE CA  FORT MAT  John Wick  1111 -WC  05/12/2015  TRANS- AMB WAIT  TRANSPORTATION - WAIT TIME, AMBULATORY  $49.39  $249.55  18-0008888  TIME  Total Charges :  $895.62  This is not a medical bill . Thank you for your business !  Make payable to:  (321)555-4600  CarelQ  PO Box 1000 S. Main East   TIN: (123) 555 - 4148", "Hi This is a Test, what is the label?"]})
 
 import mlflow
-logged_model = f"models:/{model_name}/Production'
+logged_model = f"models:/{model_name}/Production"
 
 # Load model as a PyFuncModel.
 loaded_model = mlflow.pyfunc.load_model(logged_model)
@@ -548,7 +510,7 @@ deploy_config ={
 json_object = json.dumps(deploy_config)
   
 # Writing to sample.json
-with open("deployment_config.json", "w") as outfile:
+with open(f"{SAVE_DIR}/deployment_config.json", "w") as outfile:
     outfile.write(json_object)
 
 # COMMAND ----------
@@ -563,7 +525,7 @@ model_uri = f"models:/{model_name}/Production'
 model_path = "model"
 
 # set the deployment config
-deployment_config_path = "deployment_config.json"
+deployment_config_path = f"{SAVE_DIR}/deployment_config.json"
 test_config = {'deploy-config-file': deployment_config_path}
 
 # define the model path and the name is the service name

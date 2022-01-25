@@ -2,7 +2,7 @@
 # MAGIC %md
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
 # MAGIC 
-# MAGIC **PART 4/4**
+# MAGIC **PART 4/9**
 # MAGIC * Model Inference using batch & stream
 
 # COMMAND ----------
