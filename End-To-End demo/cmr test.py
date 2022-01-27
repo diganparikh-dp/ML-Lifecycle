@@ -23,7 +23,6 @@
 # DBTITLE 1,Create parameters as input 'widgets'
 dbutils.widgets.removeAll()
 dbutils.widgets.text("SAVE_DIR","/dbfs/mnt/oetrta/diganparikh/corvel/corvel_contents", "Global path/URI (ADLS)")
-dbutils.widgets.text("INPUT_DATA", "/mnt/oetrta/diganparikh/corvel/corvel_contents/iter6.14_pocsample.csv", "Path to input OCR + label file")
 dbutils.widgets.text("USE_CASE", 'symbeo_doctyping', "Use-Case Name")
 dbutils.widgets.text("PRE_TRAINED_MODEL_NAME","emilyalsentzer/Bio_ClinicalBERT", "Pre-Trained BERT model to load")
 dbutils.widgets.text("MODEL_NAME","DocType", "Model Name")
