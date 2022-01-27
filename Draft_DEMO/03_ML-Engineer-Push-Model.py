@@ -441,7 +441,7 @@ with mlflow.start_run(run_name=f"{USE_CASE}_{model_name}"):
 
 # COMMAND ----------
 
-# DBTITLE 1,Helper call for model transition request
+# DBTITLE 1,Helper call for model transition request - ORIGINAL
 import json
 
 # Re-Create Client and get host credentials
@@ -480,77 +480,58 @@ def request_transition(model_name, version, stage):
 
 # COMMAND ----------
 
-def mlflow_call_endpoint(endpoint, method, body='{}', mlflow_uri=""):
-    # Get host url and access token for workspace to create webhooks on
-    
-    # Create mlflow context
-    import mlflow
-#     mlflow.set_registry_uri(mlflow_uri)
-    this_client = mlflow.tracking.MlflowClient()
-    host_creds = this_client._tracking_client.store.get_host_creds()
-    from mlflow.utils.rest_utils import http_request
-    
-    # Get 
-    if method == 'GET':
-        response = http_request(
-            host_creds=host_creds,
-            endpoint=f"{mlflow_uri}/api/2.0/mlflow/{endpoint}",
-            method=method,
-            params=json.loads(body))
-    else:
-        response = http_request(
-            host_creds=host_creds,
-            endpoint=f"{mlflow_uri}/api/2.0/mlflow/{endpoint}",
-            method=method,
-            json=json.loads(body))
-    
-    return response.json()
+import json
+import requests
 
-def request_transition(model_name, version, stage, mlflow_uri=""):
-    staging_request = {'name': model_name,
-                     'version': version,
-                     'stage': stage,
-                     'archive_existing_versions': 'true'}
-    response = mlflow_call_endpoint('transition-requests/create', 'POST', json.dumps(staging_request), mlflow_uri)
-    return(response)
+def mlflow_call_endpoint_post(endpoint="", method="POST", body="{}", mlflow_host_url="", token=None):
+    
+    if token:
+        auth_header = {"Authorization": f"Bearer {token}"}
+    else:
+        auth_header = {}
+
+    list_endpoint = f"{mlflow_host_url}/api/2.0/mlflow/{endpoint}"
+    
+    if method == "GET":
+        response = requests.get(list_endpoint, headers=auth_header, data=json.dumps(body))
+    elif method == "POST":
+        response = requests.post(list_endpoint, headers=auth_header, data=json.dumps(body))
+    else:
+        return {"Invalid Method"}
+
+    return response.text
+
+def request_transition(model_name, version, stage, mlflow_host_url="", token=None):
+    transition_request = {
+        'name': model_name,
+        'version': version,
+        'stage': stage,
+        'archive_existing_versions': 'true'
+    }
+    
+    return mlflow_call_endpoint('transition-requests/create', 'POST', transition_request, mlflow_host_url, token)
 
 # COMMAND ----------
 
 cmr_host = "https://e2-demo-west.cloud.databricks.com"
 cmr_token = dbutils.secrets.get(scope='ml-scope',key='dp-token')
-auth_header = {"Authorization": f"Bearer {cmr_token}"}
 
-list_endpoint = f"{cmr_host}/api/2.0/mlflow/registry-webhooks/list"
-list_webhook_params = {
+list_endpoint = "registry-webhooks/list"
+list_webhook_body = {
   'model_name': model_name
 }
-response = requests.get( list_endpoint, headers=auth_header, data=json.dumps(list_webhook_params) )
-response.content
+
+mlflow_call_endpoint_post(endpoint=list_endpoint, method="GET", body=list_webhook_body, mlflow_host_url=cmr_host, token=cmr_token)
 
 # COMMAND ----------
 
-mlflow.set_registry_uri("https://e2-demo-west.cloud.databricks.com/?o=2556758628403379")
-mlflow.tracking.MlflowClient().transition_model_version_stage(model_name, latest_model_version, dbutils.widgets.get("stage"))
-
-# COMMAND ----------
-
-request_transition(model_name=model_name,
-                   version="2",
-                   stage=dbutils.widgets.get("stage"),
-                   mlflow_uri="https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485"
-                  )
-
-# COMMAND ----------
-
-# DBTITLE 1,Request Transition
-# Re-Create Client
-client = MlflowClient()
-
-# Get latest model version
-latest_model_version = client.search_model_versions(f"name='{model_name}'")[-1].version
-
-# Request Transition
-client.transition_model_version_stage(model_name, latest_model_version, dbutils.widgets.get("stage"))
+request_transition(
+    model_name=model_name,
+    version=latest_model_version,
+    stage=dbutils.widgets.get("stage"),
+    mlflow_host_url=cmr_host,
+    token=cmr_token
+)
 
 # COMMAND ----------
 
