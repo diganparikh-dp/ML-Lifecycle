@@ -88,7 +88,7 @@ def mlflow_call_endpoint(endpoint="", method="POST", body="{}", mlflow_host_url=
 def list_webhooks(model_name):
     list_model_webhooks = json.dumps({"model_name": model_name})
     response = mlflow_call_endpoint("registry-webhooks/list", method = "GET", body = list_model_webhooks, mlflow_host_url=mlflo)
-    
+   
     return(response)
 
 # Delete

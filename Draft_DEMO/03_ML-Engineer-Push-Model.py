@@ -102,6 +102,7 @@ bert_model_name = f"CORVEL_BERT_{USE_CASE}"
 lstm_model_name = f"CORVEL_LSTM_{USE_CASE}"
 
 # Get latest model versions
+
 bert_latest_model_version = client_local.search_model_versions(f"name='{bert_model_name}'")[0].version
 # lstm_latest_model_version = client_local.search_model_versions(f"name='{lstm_model_name}'")[0].version
 
@@ -405,6 +406,7 @@ signature = mlflow.models.infer_signature(
 
 # DBTITLE 1,Point to desired  MLFlow Registry
 registry_uri = dbutils.widgets.get("MLFLOW_URI_PAT") # 'databricks' for local
+
 mlflow.set_registry_uri(registry_uri)
 
 # COMMAND ----------
@@ -483,6 +485,7 @@ token = dbutils.secrets.get(scope="ml-scope", key="dp-token") # PAT for Central 
 
 # Get latest model version
 latest_model_version = mlflow.tracking.MlflowClient().search_model_versions(f"name='{model_name}'")[0].version
+
 
 request_transition(
     model_name=model_name,
