@@ -31,7 +31,7 @@ dbutils.widgets.text("USE_CASE", 'symbeo_doctyping', "Use-Case Name")
 dbutils.widgets.text("PRE_TRAINED_MODEL_NAME","emilyalsentzer/Bio_ClinicalBERT", "Pre-Trained BERT model to load")
 dbutils.widgets.text("MODEL_NAME","DocType_Test", "Model Name")
 dbutils.widgets.text("MLFLOW_URI_PAT","databricks://ml-scope:dp", "Model Registry PAT")
-dbutils.widgets.text("MLFLOW_HOST_URL","https://e2-demo-west.cloud.databricks.com", "Central Model Registry URL")
+dbutils.widgets.text("MLFLOW_HOST_URL","https://e2-demo-west.cloud.databricks.com", "Model Registry URL")
 dbutils.widgets.dropdown("stage","Staging", ["None", "Archived", "Staging", "Production"], "Transition to:")
 
 # COMMAND ----------
@@ -102,8 +102,8 @@ bert_model_name = f"CORVEL_BERT_{USE_CASE}"
 lstm_model_name = f"CORVEL_LSTM_{USE_CASE}"
 
 # Get latest model versions
-bert_latest_model_version = client_local.get_latest_versions(bert_model_name)[0].version
-# lstm_latest_model_version = client_local.get_latest_versions(lstm_model_name)[0].version
+bert_latest_model_version = client_local.search_model_versions(f"name='{bert_model_name}'")[0].version
+# lstm_latest_model_version = client_local.search_model_versions(f"name='{lstm_model_name}'")[0].version
 
 # COMMAND ----------
 
@@ -477,14 +477,18 @@ def request_transition(model_name, version, stage, mlflow_host_url="", token=Non
 
 # COMMAND ----------
 
+# Get Access Token
 token = dbutils.secrets.get(scope="ml-scope", key="dp-token") # PAT for Central Model Registry
 # token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get() # Local
+
+# Get latest model version
+latest_model_version = mlflow.tracking.MlflowClient().search_model_versions(f"name='{model_name}'")[0].version
 
 request_transition(
     model_name=model_name,
     version=latest_model_version,
     stage=dbutils.widgets.get("stage"),
-    mlflow_host_url=dbutils.widget.get("MLFLOW_HOST_URL"),
+    mlflow_host_url=dbutils.widgets.get("MLFLOW_HOST_URL"),
     token=token
 )
 
