@@ -30,7 +30,8 @@ dbutils.widgets.text("SAVE_DIR","/dbfs/mnt/oetrta/diganparikh/corvel/corvel_cont
 dbutils.widgets.text("USE_CASE", 'symbeo_doctyping', "Use-Case Name")
 dbutils.widgets.text("PRE_TRAINED_MODEL_NAME","emilyalsentzer/Bio_ClinicalBERT", "Pre-Trained BERT model to load")
 dbutils.widgets.text("MODEL_NAME","DocType_Test", "Model Name")
-dbutils.widgets.text("MLFLOW_CENTRAL_URI","databricks://ml-scope:dp", "Central Model Registry URI")
+dbutils.widgets.text("MLFLOW_URI_PAT","databricks://ml-scope:dp", "Model Registry PAT")
+dbutils.widgets.text("MLFLOW_HOST_URL","https://e2-demo-west.cloud.databricks.com", "Central Model Registry URL")
 dbutils.widgets.dropdown("stage","Staging", ["None", "Archived", "Staging", "Production"], "Transition to:")
 
 # COMMAND ----------
@@ -394,15 +395,16 @@ signature = mlflow.models.infer_signature(
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Set MLflow to point to desired server
+# MAGIC ### Set MLflow to point to desired server for pushing model
+# MAGIC _using the [Personnal Access Tokens](https://docs.databricks.com/dev-tools/api/latest/authentication.html#token-management) created_
 # MAGIC * DEV ('databricks')
 # MAGIC * QA
-# MAGIC * PROD ('Central Model Registry URI')
+# MAGIC * PROD ('Central Model Registry PAT')
 
 # COMMAND ----------
 
-# DBTITLE 1,Point/Use Central MLFlow Server (OPTIONAL)
-registry_uri = dbutils.widgets.get("MLFLOW_CENTRAL_URI")
+# DBTITLE 1,Point to desired  MLFlow Registry
+registry_uri = dbutils.widgets.get("MLFLOW_URI_PAT") # 'databricks' for local
 mlflow.set_registry_uri(registry_uri)
 
 # COMMAND ----------
@@ -441,49 +443,11 @@ with mlflow.start_run(run_name=f"{USE_CASE}_{model_name}"):
 
 # COMMAND ----------
 
-# DBTITLE 1,Helper call for model transition request - ORIGINAL
-import json
-
-# Re-Create Client and get host credentials
-client = MlflowClient()
-host_creds = client._tracking_client.store.get_host_creds()
-
-# Get latest model version
-latest_model_version = client.search_model_versions(f"name='{model_name}'")[-1].version
-
-def mlflow_call_endpoint(endpoint, method, body='{}'):
-    # Get host url and access token for workspace to create webhooks on
-    
-
-    if method == 'GET':
-        response = mlflow.utils.rest_utils.http_request(
-            host_creds=host_creds,
-            endpoint="/api/2.0/mlflow/{}".format(endpoint),
-            method=method,
-            params=json.loads(body))
-    else:
-        response = mlflow.utils.rest_utils.http_request(
-            host_creds=host_creds,
-            endpoint="/api/2.0/mlflow/{}".format(endpoint),
-            method=method,
-            json=json.loads(body))
-    
-    return response.json()
-
-def request_transition(model_name, version, stage):
-    staging_request = {'name': model_name,
-                     'version': version,
-                     'stage': stage,
-                     'archive_existing_versions': 'true'}
-    response = mlflow_call_endpoint('transition-requests/create', 'POST', json.dumps(staging_request))
-    return(response)
-
-# COMMAND ----------
-
+# DBTITLE 1,Helper call for model transition request
 import json
 import requests
 
-def mlflow_call_endpoint_post(endpoint="", method="POST", body="{}", mlflow_host_url="", token=None):
+def mlflow_call_endpoint(endpoint="", method="POST", body="{}", mlflow_host_url="", token=None):
     
     if token:
         auth_header = {"Authorization": f"Bearer {token}"}
@@ -513,24 +477,15 @@ def request_transition(model_name, version, stage, mlflow_host_url="", token=Non
 
 # COMMAND ----------
 
-cmr_host = "https://e2-demo-west.cloud.databricks.com"
-cmr_token = dbutils.secrets.get(scope='ml-scope',key='dp-token')
-
-list_endpoint = "registry-webhooks/list"
-list_webhook_body = {
-  'model_name': model_name
-}
-
-mlflow_call_endpoint_post(endpoint=list_endpoint, method="GET", body=list_webhook_body, mlflow_host_url=cmr_host, token=cmr_token)
-
-# COMMAND ----------
+token = dbutils.secrets.get(scope="ml-scope", key="dp-token") # PAT for Central Model Registry
+# token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get() # Local
 
 request_transition(
     model_name=model_name,
     version=latest_model_version,
     stage=dbutils.widgets.get("stage"),
-    mlflow_host_url=cmr_host,
-    token=cmr_token
+    mlflow_host_url=dbutils.widget.get("MLFLOW_HOST_URL"),
+    token=token
 )
 
 # COMMAND ----------

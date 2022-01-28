@@ -19,13 +19,21 @@
 # DBTITLE 1,Create parameters as input 'widgets'
 dbutils.widgets.removeAll()
 dbutils.widgets.text("MODEL_NAME","DocType_Test", "Model Name")
-dbutils.widgets.text("MLFLOW_CENTRAL_URI","databricks://ml-scope:dp", "Central Model Registry URI")
+dbutils.widgets.text("MLFLOW_HOST_URL","https://e2-demo-west.cloud.databricks.com", "Central Model Registry URL")
 dbutils.widgets.text("mlops_job_id","330465", "Job ID (Databricks MLOps Validation):")
 dbutils.widgets.text("azure_job_id","332018", "Job ID (Azure DevOps release pipeline):")
 
 # COMMAND ----------
 
+# MAGIC %md
+# MAGIC ### Get model name, Model Registry URL and Access Token info
+
+# COMMAND ----------
+
 model_name = dbutils.widgets.get("MODEL_NAME")
+mlflow_host_url = dbutils.widgets.get("MLFLOW_HOST_URL")
+token = dbutils.secrets.get(scope="ml-scope", key="dp-token") # PAT for Central Model Registry
+# token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get() # Local
 
 # COMMAND ----------
 
@@ -52,75 +60,34 @@ import mlflow
 
 # COMMAND ----------
 
-# DBTITLE 1,Pre-Requisite: Point/Use Central MLFlow Server (ONLY IF NOT RUNNING FROM CENTRAL WORKSPACE)
-registry_uri = dbutils.widgets.get("MLFLOW_CENTRAL_URI")
-mlflow.set_registry_uri(registry_uri)
-
-# COMMAND ----------
-
-# DBTITLE 1,Pre-Requisite: Define/Get host url and access token of given workspace (i.e. Dev/QA/Prod)
-# Get host url and access token for workspace to create webhooks on
-client_ = mlflow.tracking.client.MlflowClient()
-
-host_creds = client_._tracking_client.store.get_host_creds()
-host = host_creds.host
-token = host_creds.token
-
-# COMMAND ----------
-
-#LIST HOOK
+# DBTITLE 1,Create Helper Function
 import json
 import requests
 
-# model_name = 'DocType_PyFunc_Test'
-cmr_host = "https://e2-demo-field-eng.cloud.databricks.com"
-cmr_token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get()
-#cmr_token = dbutils.secrets.get(scope='ml-scope',key='dp-token')
-auth_header = {'Authorization': f'Bearer {cmr_token}'}
-
-list_endpoint = f"{cmr_host}/api/2.0/mlflow/registry-webhooks/list"
-list_webhook_params = {
-  'model_name': model_name
-}
-response = requests.get( list_endpoint, headers=auth_header, data=json.dumps(list_webhook_params) )
-response.content
-
-# COMMAND ----------
-
-#model_name = 'DocType_Test'
-cmr_host = "https://e2-demo-west.cloud.databricks.com"
-cmr_token = dbutils.secrets.get(scope='ml-scope',key='dp-token')
-auth_header = {"Authorization": f"Bearer {cmr_token}"}
-
-list_endpoint = f"{cmr_host}/api/2.0/mlflow/registry-webhooks/list"
-list_webhook_params = {
-  'model_name': model_name
-}
-response = requests.get( list_endpoint, headers=auth_header, data=json.dumps(list_webhook_params) )
-response.content
-
-# COMMAND ----------
-
-# DBTITLE 1,Create Helper Function
-from mlflow.utils.rest_utils import http_request
-import json
-
-def mlflow_call_endpoint(endpoint, method, body='{}'):
-    if method == 'GET':
-        response = http_request(
-            host_creds=host_creds, endpoint="/api/2.0/mlflow/{}".format(endpoint), method=method, params=json.loads(body))
-    else:
-        response = http_request(
-            host_creds=host_creds, endpoint="/api/2.0/mlflow/{}".format(endpoint), method=method, json=json.loads(body))
+def mlflow_call_endpoint(endpoint="", method="POST", body="{}", mlflow_host_url="", token=None):
     
-    return response.json()
+    if token:
+        auth_header = {"Authorization": f"Bearer {token}"}
+    else:
+        auth_header = {}
+
+    list_endpoint = f"{mlflow_host_url}/api/2.0/mlflow/{endpoint}"
+    
+    if method == "GET":
+        response = requests.get(list_endpoint, headers=auth_header, data=json.dumps(body))
+    elif method == "POST":
+        response = requests.post(list_endpoint, headers=auth_header, data=json.dumps(body))
+    else:
+        return {"Invalid Method"}
+
+    return response.text
 
 # Manage webhooks
 
 # List
 def list_webhooks(model_name):
     list_model_webhooks = json.dumps({"model_name": model_name})
-    response = mlflow_call_endpoint("registry-webhooks/list", method = "GET", body = list_model_webhooks)
+    response = mlflow_call_endpoint("registry-webhooks/list", method = "GET", body = list_model_webhooks, mlflow_host_url=mlflo)
     
     return(response)
 
