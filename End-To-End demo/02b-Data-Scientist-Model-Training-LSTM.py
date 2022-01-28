@@ -1,9 +1,9 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
-# MAGIC _demo for Corvel_
+# MAGIC (_WORK_IN_PROGRESS_)
 # MAGIC 
-# MAGIC **PART 2b/9 - Model Training ** (_WORK_IN_PROGRESS_)
+# MAGIC **PART 2b/9 - Model Training **
 # MAGIC * Fine-Tune an LSTM model and log artifacts to MLflow/Model Registry
 # MAGIC * Store outputs to DELTA
 

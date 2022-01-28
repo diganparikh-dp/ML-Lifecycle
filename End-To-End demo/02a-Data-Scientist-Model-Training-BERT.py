@@ -1,7 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
-# MAGIC _demo for Corvel_
 # MAGIC 
 # MAGIC **PART 2a/9 - Model Training **
 # MAGIC * Fine-Tune a BERT model 

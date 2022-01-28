@@ -1,11 +1,15 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
+# MAGIC __TO-DO__: update diagram & add link to Azure DevOps project page
 # MAGIC 
-# MAGIC **PART 3/9 - Model Deployment **
-# MAGIC * Log custom artifact to MLflow's central model registry
-# MAGIC * Expose as REST/API
-# MAGIC * _Push to AKS_
+# MAGIC **PART 3/7 - ML Engineer: Push Model to Central Registry **
+# MAGIC 1. Pull independent artifacts from local model registry (BERT & LSTM)
+# MAGIC 2. Local/Functionnal Testing
+# MAGIC 3. Log custom artifact to MLflow's central model registry
+# MAGIC 4. Request Transition to Staging/Production
+# MAGIC 
+# MAGIC _P.S: This notebook can also be triggered automatically every time a Data-Scientist pushes a new BERT or LSTM model version to the local registry_
 
 # COMMAND ----------
 
@@ -23,11 +27,11 @@
 # DBTITLE 1,Create parameters as input 'widgets'
 dbutils.widgets.removeAll()
 dbutils.widgets.text("SAVE_DIR","/dbfs/mnt/oetrta/diganparikh/corvel/corvel_contents", "Global path/URI (ADLS)")
-dbutils.widgets.text("INPUT_DATA", "/mnt/oetrta/diganparikh/corvel/corvel_contents/iter6.14_pocsample.csv", "Path to input OCR + label file")
 dbutils.widgets.text("USE_CASE", 'symbeo_doctyping', "Use-Case Name")
 dbutils.widgets.text("PRE_TRAINED_MODEL_NAME","emilyalsentzer/Bio_ClinicalBERT", "Pre-Trained BERT model to load")
-dbutils.widgets.text("MODEL_NAME","DocType", "Model Name")
+dbutils.widgets.text("MODEL_NAME","DocType_Test", "Model Name")
 dbutils.widgets.text("MLFLOW_CENTRAL_URI","databricks://ml-scope:dp", "Central Model Registry URI")
+dbutils.widgets.dropdown("stage","Staging", ["None", "Archived", "Staging", "Production"], "Transition to:")
 
 # COMMAND ----------
 
@@ -88,14 +92,34 @@ artifacts_global = {
 
 # COMMAND ----------
 
-# DBTITLE 1,Pull models from MLflow and save to temp/global artifact location for creating custom artifact
+# DBTITLE 1,Get latest model versions
+from mlflow.tracking import MlflowClient
+
+client_local = MlflowClient()
+
 bert_model_name = f"CORVEL_BERT_{USE_CASE}"
 lstm_model_name = f"CORVEL_LSTM_{USE_CASE}"
 
-bert_model_loaded = mlflow.pytorch.load_model(f"models:/{bert_model_name}/Production")
-# lstm_model_loaded = mlflow.pytorch.load_model(f"models:/{lstm_model_name}/Production")
+# Get latest model versions
+bert_latest_model_version = client_local.get_latest_versions(bert_model_name)[0].version
+# lstm_latest_model_version = client_local.get_latest_versions(lstm_model_name)[0].version
 
-# Save to global/tmp path for pushing to central Model-Registry
+# COMMAND ----------
+
+# DBTITLE 1,Pull latest models from local MLflow
+bert_model_loaded = mlflow.pytorch.load_model(f"models:/{bert_model_name}/{bert_latest_model_version}")
+# lstm_model_loaded = mlflow.pytorch.load_model(f"models:/{lstm_model_name}/{lstm_latest_model_version}") # Dummy Model for Now
+
+# OR Assume 'Production' version is the gold standard
+# bert_model_loaded = mlflow.pytorch.load_model(f"models:/{bert_model_name}/Production")
+# lstm_model_loaded = mlflow.pytorch.load_model(f"models:/{lstm_model_name}/Production") # Dummy Model for Now
+
+print(f"Pulling BERT version {bert_latest_model_version} from Dev Registry")
+# print(f"Pulling LSTM version {lstm_latest_model_version} from Dev Registry")
+
+# COMMAND ----------
+
+# DBTITLE 1,Save to temp/global location for creating custom MLflow artifact
 # torch.save(bert_model_loaded.state_dict(), artifacts_global["BERT_MODEL_PATH"])
 # lstm_model_loaded.save(artifacts_global["LSTM_MODEL_PATH"])
 
@@ -337,8 +361,8 @@ class DocTypeWrapper(mlflow.pyfunc.PythonModel):
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Test custom model
-# MAGIC **Predict on single pandas dataframe**
+# MAGIC ### Local Functionnal Testing
+# MAGIC **Predict on single pandas dataframe for schema validation**
 
 # COMMAND ----------
 
@@ -369,12 +393,21 @@ signature = mlflow.models.infer_signature(
 
 # COMMAND ----------
 
-# DBTITLE 1,Set MLFlow to point to Central Server
+# MAGIC %md
+# MAGIC ### Set MLflow to point to desired server
+# MAGIC * DEV ('databricks')
+# MAGIC * QA
+# MAGIC * PROD ('Central Model Registry URI')
+
+# COMMAND ----------
+
+# DBTITLE 1,Point/Use Central MLFlow Server (OPTIONAL)
 registry_uri = dbutils.widgets.get("MLFLOW_CENTRAL_URI")
 mlflow.set_registry_uri(registry_uri)
 
 # COMMAND ----------
 
+# DBTITLE 1,Log new version
 model_name = dbutils.widgets.get("MODEL_NAME")
 with mlflow.start_run(run_name=f"{USE_CASE}_{model_name}"):
     
@@ -390,146 +423,121 @@ with mlflow.start_run(run_name=f"{USE_CASE}_{model_name}"):
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Transition Stages
+# MAGIC ### Local API Testing _(OPTIONAL)_
+# MAGIC Enable Model Serving and test payload/response and/or use [test notebook](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#notebook/1390462475107692/command/1390462475107722)
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Request Transition to new stage:
 # MAGIC `None`
 # MAGIC `Archived`
 # MAGIC `Staging`
 # MAGIC `Production`
 # MAGIC 
-# MAGIC Pick last version and mark as 'Production'
+# MAGIC Pick last version and request transition to stage parameter
+# MAGIC 
+# MAGIC **Assumes Webhooks were already created [here](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#notebook/1390462475087728/command/1390462475087764)**
 
 # COMMAND ----------
 
-from mlflow.tracking import MlflowClient
+# DBTITLE 1,Helper call for model transition request - ORIGINAL
+import json
 
+# Re-Create Client and get host credentials
 client = MlflowClient()
-latest_model = client.search_model_versions(f"name='{model_name}'")
-latest_model_version = latest_model[0].version
+host_creds = client._tracking_client.store.get_host_creds()
 
-client.transition_model_version_stage(
-    name=model_name,
-    version=int(latest_model_version),
-    stage="Production",
-    archive_existing_versions=True
+# Get latest model version
+latest_model_version = client.search_model_versions(f"name='{model_name}'")[-1].version
+
+def mlflow_call_endpoint(endpoint, method, body='{}'):
+    # Get host url and access token for workspace to create webhooks on
+    
+
+    if method == 'GET':
+        response = mlflow.utils.rest_utils.http_request(
+            host_creds=host_creds,
+            endpoint="/api/2.0/mlflow/{}".format(endpoint),
+            method=method,
+            params=json.loads(body))
+    else:
+        response = mlflow.utils.rest_utils.http_request(
+            host_creds=host_creds,
+            endpoint="/api/2.0/mlflow/{}".format(endpoint),
+            method=method,
+            json=json.loads(body))
+    
+    return response.json()
+
+def request_transition(model_name, version, stage):
+    staging_request = {'name': model_name,
+                     'version': version,
+                     'stage': stage,
+                     'archive_existing_versions': 'true'}
+    response = mlflow_call_endpoint('transition-requests/create', 'POST', json.dumps(staging_request))
+    return(response)
+
+# COMMAND ----------
+
+import json
+import requests
+
+def mlflow_call_endpoint_post(endpoint="", method="POST", body="{}", mlflow_host_url="", token=None):
+    
+    if token:
+        auth_header = {"Authorization": f"Bearer {token}"}
+    else:
+        auth_header = {}
+
+    list_endpoint = f"{mlflow_host_url}/api/2.0/mlflow/{endpoint}"
+    
+    if method == "GET":
+        response = requests.get(list_endpoint, headers=auth_header, data=json.dumps(body))
+    elif method == "POST":
+        response = requests.post(list_endpoint, headers=auth_header, data=json.dumps(body))
+    else:
+        return {"Invalid Method"}
+
+    return response.text
+
+def request_transition(model_name, version, stage, mlflow_host_url="", token=None):
+    transition_request = {
+        'name': model_name,
+        'version': version,
+        'stage': stage,
+        'archive_existing_versions': 'true'
+    }
+    
+    return mlflow_call_endpoint('transition-requests/create', 'POST', transition_request, mlflow_host_url, token)
+
+# COMMAND ----------
+
+cmr_host = "https://e2-demo-west.cloud.databricks.com"
+cmr_token = dbutils.secrets.get(scope='ml-scope',key='dp-token')
+
+list_endpoint = "registry-webhooks/list"
+list_webhook_body = {
+  'model_name': model_name
+}
+
+mlflow_call_endpoint_post(endpoint=list_endpoint, method="GET", body=list_webhook_body, mlflow_host_url=cmr_host, token=cmr_token)
+
+# COMMAND ----------
+
+request_transition(
+    model_name=model_name,
+    version=latest_model_version,
+    stage=dbutils.widgets.get("stage"),
+    mlflow_host_url=cmr_host,
+    token=cmr_token
 )
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## Enable Model Serving
-# MAGIC [Here](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#mlflow/models/DocType_PyFunc_Test/serving)
-# MAGIC 
-# MAGIC Example call:
-# MAGIC ```
-# MAGIC [
-# MAGIC {
-# MAGIC "Request" : ["Hello World"]
-# MAGIC }
-# MAGIC ]
-# MAGIC ```
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ### Test model serving
-# MAGIC Using python API call
-
-# COMMAND ----------
-
-# DBTITLE 1,Create Helper Calls
-import os
-import requests
-import numpy as np
-import pandas as pd
-
-def score_model(data: pd.DataFrame, model_name: str, version: str):
-  token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().getOrElse(None)
-  instance = dbutils.notebook.entry_point.getDbutils().notebook().getContext().tags().apply('browserHostName')
-  url = f'https://{instance}/model/{model_name}/{version}/invocations'
-  headers = {'Authorization': f'Bearer {token}'}
-  data_json = data.to_dict(orient='split')
-  response = requests.request(method='POST', headers=headers, url=url, json=data_json)
-  if response.status_code != 200:
-    raise Exception(f'Request failed with status {response.status_code}, {response.text}')
-  return pd.DataFrame(response.json())
-
-test_df = pd.DataFrame({'Request':['hello world']})
-
-# COMMAND ----------
-
-model_name = dbutils.widgets.get("MODEL_NAME")
-latest_model_version = "1"
-
-# COMMAND ----------
-
-out_df = score_model(test_df, model_name, latest_model_version)
-
-# COMMAND ----------
-
-display(out_df)
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## Load from MLflow and perform inference against pandas DataFrame
-# MAGIC for functionnal testing purposes
-
-# COMMAND ----------
-
-# DBTITLE 0,inferencing against pandas df... works fine but goes through the nltk installation process
-test_df = pd.DataFrame({'Request':["City of Fort Matthews-EC-TT  CarelQ  Automated to Georgia - Site 11  A CORVEL NETWORK  CarelQ Transportation  Invoice Date: 01/01/2020  Corvel Scan Date: 02/02/2020  Transportation /Translation Invoice :  123456  Account Group:  Patient  Claim #  Date of Service  ItemId  Item Name  Quantity  Rate  Charge  Elden , Isiah, Rili  1111-WC-  1-12-18  TRANS-AMB ROUND  TRANSPORTATION- ROUND TRIP TOTAL  $336.07  $336.07  18-0000088  TRIP  9AM FR 121 HELM ST FORT Matthews CA TO ADVANCED  Winterhill Lodge 2002 361 BALTHAM ST PORT CHARLOTTE CA  FORT MAT  John Wick  1111 -WC  05/12/2015  TRANS- AMB WAIT  TRANSPORTATION - WAIT TIME, AMBULATORY  $49.39  $249.55  18-0008888  TIME  Total Charges :  $895.62  This is not a medical bill . Thank you for your business !  Make payable to:  (321)555-4600  CarelQ  PO Box 1000 S. Main East   TIN: (123) 555 - 4148", "Hi This is a Test, what is the label?"]})
-
-import mlflow
-logged_model = f"models:/{model_name}/Production"
-
-# Load model as a PyFuncModel.
-loaded_model = mlflow.pyfunc.load_model(logged_model)
-
-# Predict on a Pandas DataFrame.
-import pandas as pd
-loaded_model.predict(test_df)
-
-# COMMAND ----------
-
-# MAGIC %md
-# MAGIC ## [Push to AML/AKS](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-deploy-mlflow-models)
-# MAGIC 
-# MAGIC <img src="https://docs.microsoft.com/en-us/azure/machine-learning/media/how-to-deploy-mlflow-models/mlflow-diagram-deploy.png" width=700/>
-
-# COMMAND ----------
-
-import json
-  
-# Data to be written
-deploy_config ={
-    "computeType": "aks",
-    "computeTargetName": "aks-mlflow"
-}
-
-# Serializing json 
-json_object = json.dumps(deploy_config)
-  
-# Writing to sample.json
-with open(f"{SAVE_DIR}/deployment_config.json", "w") as outfile:
-    outfile.write(json_object)
-
-# COMMAND ----------
-
-from mlflow.deployments import get_deploy_client
-
-# set the tracking uri as the deployment client
-client = get_deploy_client(mlflow.get_tracking_uri())
-model_uri = f"models:/{model_name}/Production'
-
-# set the model path 
-model_path = "model"
-
-# set the deployment config
-deployment_config_path = f"{SAVE_DIR}/deployment_config.json"
-test_config = {'deploy-config-file': deployment_config_path}
-
-# define the model path and the name is the service name
-# the model gets registered automatically and a name is autogenerated using the "name" parameter below 
-client.create_deployment(model_uri=model_uri,
-                         config=test_config,
-                         name=f"{USE_CASE}-aks-deployment")
+# MAGIC **This will trigger the following sequential actions:**
+# MAGIC 1. [Validation job](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/330465) has kicked
+# MAGIC 2. Receive slack notification if validation was succesful
+# MAGIC 3. [AzureDevOps](add link) pipeline [job](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/332018) has kicked
+# MAGIC 4. [MLflow artifact was pushed to AKS](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/332066)
