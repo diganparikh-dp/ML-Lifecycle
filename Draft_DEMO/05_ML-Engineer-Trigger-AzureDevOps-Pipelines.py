@@ -6,7 +6,9 @@
 # MAGIC **PART 5/7 - ML Engineer/DevOps: Trigger Azure DevOps pipeline notebook** _(scheduled as job to be triggered during Model Transition)_
 # MAGIC 1. Parse payload
 # MAGIC 2. Trigger Azure DevOps via REST API
-# MAGIC * Create Job and retrieve `JobID` _(DO ONCE)_ `332018`
+# MAGIC * Create Job and retrieve `JobID` _(DO ONCE)_ _(`341258` in `field-eng`)_
+# MAGIC 
+# MAGIC _P.S: Using this databricks notebook as a middle-ware to parse payload and trigger Azure DevOps pipline due to current webhooks limitation with Azure DevOps_
 
 # COMMAND ----------
 
@@ -20,7 +22,7 @@ dbutils.widgets.text("event_message",'{}',"Webhook payload")
 dbutils.widgets.text("org_id",'diganparikh',"Organization ID")
 dbutils.widgets.text("project_id",'ML-DEMO',"Project ID")
 dbutils.widgets.text("QA_pipeline_id",'2',"Pipeline ID QA (Azure DevOps)")
-dbutils.widgets.text("production_pipeline_id",'2',"Pipeline ID Production (Azure DevOps)")
+dbutils.widgets.text("production_pipeline_id",'3',"Pipeline ID Production (Azure DevOps)")
 
 # COMMAND ----------
 
@@ -36,6 +38,11 @@ event_message_dict = json.loads(event_message)
 
 # COMMAND ----------
 
+# MAGIC %md ## Trigger Release pipeline
+# MAGIC Based on stage transition request
+
+# COMMAND ----------
+
 # DBTITLE 1,Contextual parameters definition
 import base64
 
@@ -47,11 +54,6 @@ releases_uri = f"https://vsrm.dev.azure.com/{org_id}/{project_id}/_apis/release/
 encoded_token = base64.b64encode(bytes(f":{devops_token}", 'utf-8')).decode("utf-8")
 devops_auth = {'Authorization': f"Basic {encoded_token}",
                'Content-Type': 'application/json'}
-
-# COMMAND ----------
-
-# MAGIC %md ## Trigger Release pipeline
-# MAGIC Based on stage transition request
 
 # COMMAND ----------
 
@@ -81,3 +83,14 @@ if event_message_dict['event'] == 'MODEL_VERSION_TRANSITIONED_STAGE':
 else:
   print("Wrong trigger, exiting job")
   dbutils.notebook.exit("Wrong trigger, exiting job")
+
+# COMMAND ----------
+
+trigger_release_pipeline(int(dbutils.widgets.get("QA_pipeline_id")))
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## Create/Schedule as manual job
+# MAGIC __DO ONCE__
+# MAGIC [Here](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/341258)

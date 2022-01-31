@@ -6,7 +6,7 @@
 # MAGIC **PART 6/7 - ML Engineer/DevOps: Notebook to push MLflow artifact to AKS** _(scheduled as job to be triggered by Azure DevOps)_
 # MAGIC 1. Pull custom artifacts from central model registry
 # MAGIC 2. Push to AKS
-# MAGIC * Create Job and retrieve `JobID` (DO ONCE) - `332066`
+# MAGIC * Create Job and retrieve `JobID` _(DO ONCE)_ _(`341343` in field-eng)_
 
 # COMMAND ----------
 
@@ -67,7 +67,8 @@ model_name, latest_model_version, stage = fetch_webhook_data()
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ## [Push to AML/AKS](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-deploy-mlflow-models)
+# MAGIC ## OPTION 1: [Push to AML/AKS](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-deploy-mlflow-models)
+# MAGIC via an AzureML workspace
 # MAGIC 
 # MAGIC <img src="https://docs.microsoft.com/en-us/azure/machine-learning/media/how-to-deploy-mlflow-models/mlflow-diagram-deploy.png" width=700/>
 
@@ -108,3 +109,16 @@ test_config = {'deploy-config-file': deployment_config_path}
 client.create_deployment(model_uri=model_uri,
                          config=test_config,
                          name=f"{USE_CASE}-aks-deployment")
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC ## OPTION 2: [Push to ACI/AKS](https://techcommunity.microsoft.com/t5/azure-ai-blog/machine-learning-at-scale-with-databricks-and-kubernetes/ba-p/3056539)
+# MAGIC 
+# MAGIC <img src="https://techcommunity.microsoft.com/t5/image/serverpage/image-id/342800i16866D655086C0AD/image-dimensions/866x623?v=v2" width=700/>
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC 
+# MAGIC <img src="https://techcommunity.microsoft.com/t5/image/serverpage/image-id/342802iB36621C465282F10/image-dimensions/865x390?v=v2" width=700/>

@@ -17,12 +17,6 @@
 
 # COMMAND ----------
 
-# MAGIC %md
-# MAGIC ## Environment setup
-# MAGIC Define parameters, install requirement and define context
-
-# COMMAND ----------
-
 # DBTITLE 1,Create parameters as input 'widgets'
 dbutils.widgets.removeAll()
 dbutils.widgets.text("SAVE_DIR","/dbfs/mnt/oetrta/diganparikh/corvel/corvel_contents", "Global path/URI (ADLS)")
@@ -797,7 +791,10 @@ def get_bert_vectors_udf(pds_text: pd.Series, pds_label: pd.Series) -> pd.Series
 # COMMAND ----------
 
 embeddingsDF = trainingDF.withColumn("embeddings", get_bert_embeddings_udf("text_chunk"))
-# display(embeddingsDF)
+
+# COMMAND ----------
+
+display(embeddingsDF)
 
 # COMMAND ----------
 

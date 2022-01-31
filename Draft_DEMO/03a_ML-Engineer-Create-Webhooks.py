@@ -26,9 +26,9 @@
 # DBTITLE 1,Create parameters as input 'widgets'
 dbutils.widgets.removeAll()
 dbutils.widgets.text("MODEL_NAME","DocType_Test", "Model Name")
-dbutils.widgets.text("MLFLOW_HOST_URL","https://e2-demo-west.cloud.databricks.com", "Central Model Registry URL")
-dbutils.widgets.text("mlops_job_id","333539", "Job ID (Databricks MLOps Validation):")
-dbutils.widgets.text("azure_job_id","333925", "Job ID (Azure DevOps release pipeline):")
+dbutils.widgets.text("MLFLOW_HOST_URL","https://e2-demo-field-eng.cloud.databricks.com", "Model Registry URL")
+dbutils.widgets.text("mlops_job_id","341239", "Job ID (Databricks MLOps Validation):")
+dbutils.widgets.text("azure_job_id","341258", "Job ID (Azure DevOps release pipeline):")
 
 # COMMAND ----------
 
@@ -39,8 +39,11 @@ dbutils.widgets.text("azure_job_id","333925", "Job ID (Azure DevOps release pipe
 
 model_name = dbutils.widgets.get("MODEL_NAME")
 mlflow_host_url = dbutils.widgets.get("MLFLOW_HOST_URL")
-token = dbutils.secrets.get(scope="ml-scope", key="dp-token") # PAT for Central Model Registry
-# token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get() # Local
+
+# COMMAND ----------
+
+# token = dbutils.secrets.get(scope="ml-scope", key="dp-token") # PAT for Central Model Registry
+token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get() # Local PAT
 
 # COMMAND ----------
 
@@ -67,7 +70,7 @@ import mlflow
 
 # COMMAND ----------
 
-# DBTITLE 1,Create Helper Function
+# DBTITLE 1,Create Helper Function for MLflow API calls
 import json
 import requests
 
@@ -89,13 +92,16 @@ def mlflow_call_endpoint(endpoint="", method="POST", body="{}", mlflow_host_url=
 
     return response.text
 
-# Manage webhooks
+# COMMAND ----------
 
+# DBTITLE 1,Create Helper Function for webhooks management
 # List
 def list_webhooks(model_name):
     list_model_webhooks = {"model_name": model_name}
     response = mlflow_call_endpoint("registry-webhooks/list", method = "GET", body = list_model_webhooks, mlflow_host_url=mlflow_host_url, token=token)
     
+    if isinstance(response, str):
+      response = json.loads(response)
     return(response)
 
 # Delete
@@ -115,7 +121,7 @@ def reset_webhooks(model_name):
 # COMMAND ----------
 
 # Reset (for Demo purposes)
-reset_webhooks(model_name = model_name)
+reset_webhooks(model_name)
 
 # COMMAND ----------
 
@@ -126,19 +132,19 @@ reset_webhooks(model_name = model_name)
 # COMMAND ----------
 
 # DBTITLE 1,Helper function to create databricks job webhook
-def create_job_webhook(model_name, job_id, host_in=mlflow_host_url, token_in=token, events=["TRANSITION_REQUEST_CREATED"], description=""):
-    trigger_job = json.dumps({
+def create_job_webhook(model_name, job_id, mlflow_host_url_in=mlflow_host_url, token_in=token, events=["TRANSITION_REQUEST_CREATED"], description=""):
+    trigger_job = {
       "model_name": model_name,
       "events": events,
       "description": description,
       "status": "ACTIVE",
       "job_spec": {
         "job_id": str(job_id),
-        "workspace_url": host_in,
+        "workspace_url": mlflow_host_url_in,
         "access_token": token_in
       }
-    })
-    response = mlflow_call_endpoint("registry-webhooks/create", method = "POST", body = trigger_job, mlflow_host_url=mlflow_host_url, token=token)
+    }
+    response = mlflow_call_endpoint("registry-webhooks/create", method = "POST", body = trigger_job, mlflow_host_url=mlflow_host_url_in, token=token_in)
     return(response)
 
 # COMMAND ----------
@@ -149,7 +155,7 @@ mlops_job_id = dbutils.widgets.get("mlops_job_id") # This is our 04_ML-Engineer-
 # Add the webhook to trigger job:
 create_job_webhook(model_name = model_name,
                    job_id = mlops_job_id,
-                   description="Trigger a databricks validation job when a model transition is requested."
+                   description="Trigger a databricks validation job when model transition is requested."
                   )
 
 # COMMAND ----------
@@ -162,7 +168,7 @@ create_job_webhook(model_name = model_name,
 
 # DBTITLE 1,Helper function to create slack notification webhook
 def create_notification_webhook(model_name, slack_url, events=["MODEL_VERSION_TRANSITIONED_STAGE"], description=""):
-    trigger_slack = json.dumps({
+    trigger_slack = {
         "model_name": model_name,
         "events": events,
         "description": description,
@@ -170,7 +176,7 @@ def create_notification_webhook(model_name, slack_url, events=["MODEL_VERSION_TR
         "http_url_spec": {
             "url": slack_url
         }
-    })
+    }
     response = mlflow_call_endpoint("registry-webhooks/create", method = "POST", body = trigger_slack, mlflow_host_url=mlflow_host_url, token=token)
     
     return(response)
@@ -190,7 +196,8 @@ except:
 # DBTITLE 1,Create slack notification webhook
 create_notification_webhook(model_name = model_name,
                             slack_url = slack_webhook,
-                            description="Notify the MLOps team that a model transition has been accepted."
+                            events=["MODEL_VERSION_TRANSITIONED_STAGE"],
+                            description="Notify the MLOps team that model transition has been accepted."
                            )
 
 # COMMAND ----------
@@ -201,11 +208,19 @@ create_notification_webhook(model_name = model_name,
 
 # COMMAND ----------
 
-azure_job_id = dbutils.widgets.get("azure_job_id") # This is our 04_ML-Engineer-MLOps-Validation notebook
+azure_job_id = dbutils.widgets.get("azure_job_id") # This is our 05_ML-Engineer-Trigger-AzureDevOps notebook
 
 # Add the webhook to trigger job:
 create_job_webhook(model_name = model_name,
                    job_id = azure_job_id,
                    events="MODEL_VERSION_TRANSITIONED_STAGE",
-                   description="Trigger a databricks job which triggers an Azure DevOps pipeline when a model transition is requested."
+                   description="Start a databricks job which triggers an Azure DevOps pipeline when model transition is accepted."
                   )
+
+# COMMAND ----------
+
+list_webhooks(model_name)
+
+# COMMAND ----------
+
+

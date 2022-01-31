@@ -1,14 +1,13 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
-# MAGIC __TO-DO__: update diagram
 # MAGIC 
 # MAGIC **PART 4/7 - ML Engineer: Model Validation Test notebook** _(scheduled as job to be triggered during Model Transition Request)_
 # MAGIC 1. Pull custom artifacts from central model registry
 # MAGIC 2. Schema Validation check
 # MAGIC 3. QA check
 # MAGIC 4. Accept Transition _(to requested `stage`)_
-# MAGIC * Create Job and retrieve `JobID` _(DO ONCE)_ _(`330465` in field-eng)_
+# MAGIC * Create Job and retrieve `JobID` _(DO ONCE)_ _(`341239` in field-eng)_
 
 # COMMAND ----------
 
@@ -23,6 +22,7 @@
 
 # COMMAND ----------
 
+# DBTITLE 1,Import libs/packages
 import mlflow
 import json
 
@@ -32,20 +32,32 @@ import json
 dbutils.widgets.removeAll()
 dbutils.widgets.text("INPUT_DATA", "/mnt/oetrta/diganparikh/corvel/corvel_contents/iter6.14_pocsample.csv", "Test file")
 dbutils.widgets.text("MODEL_NAME","DocType_Test", "Model Name")
-dbutils.widgets.text("MLFLOW_CENTRAL_URI","databricks://ml-scope:dp", "Central Model Registry URI")
+dbutils.widgets.text("MLFLOW_HOST_URL","https://e2-demo-west.cloud.databricks.com", "Model Registry URL")
 dbutils.widgets.text("event_message","{}", "Webhook payload")
 dbutils.widgets.dropdown("stage","Staging", ["None", "Archived", "Staging", "Production"], "Transition to:")
 
 # COMMAND ----------
 
-# DBTITLE 1,Set MLFlow to point to Central Server
-registry_uri = dbutils.widgets.get("MLFLOW_CENTRAL_URI")
-mlflow.set_registry_uri(registry_uri)
+# MAGIC %md
+# MAGIC ### Get Model Registry URL and Access Token info
+
+# COMMAND ----------
+
+mlflow_host_url = dbutils.widgets.get("MLFLOW_HOST_URL")
+# token = dbutils.secrets.get(scope="ml-scope", key="dp-token") # PAT for Central Model Registry
+token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get() # Local PAT
+
+# COMMAND ----------
+
+# DBTITLE 1,Set MLFlow to point to Central Server (IF USING a PAT)
+# registry_uri = dbutils.widgets.get("MLFLOW_CENTRAL_PAT")
+# mlflow.set_registry_uri(registry_uri)
 
 # COMMAND ----------
 
 # MAGIC %md
 # MAGIC ## Fetch Model In Transition
+# MAGIC from webhook payload data
 
 # COMMAND ----------
 
@@ -173,7 +185,10 @@ except:
       StructField('pred_elapsed_time', DoubleType(), True)
       ])
     sparkUDF_test = spark.createDataFrame([], schema)
-    
+
+# Gather boolean
+batch_test = sparkUDF_test.rdd.isEmpty()
+
 print(QA_check)
 
 # COMMAND ----------
@@ -193,25 +208,31 @@ print(QA_check)
 
 # COMMAND ----------
 
-# DBTITLE 1,Create Helper Calls
-from mlflow.utils.rest_utils import http_request
+# DBTITLE 1,Create Helper Function for MLflow API calls
 import json
+import requests
 
-def mlflow_call_endpoint(endpoint, method, body='{}'):
+def mlflow_call_endpoint(endpoint="", method="POST", body="{}", mlflow_host_url=mlflow_host_url, token=token):
     
-    # Get host url and access token for workspace to create webhooks on
-    client_ = mlflow.tracking.client.MlflowClient()
-    host_creds = client_._tracking_client.store.get_host_creds()
-    
-    if method == 'GET':
-        response = http_request(
-            host_creds=host_creds, endpoint="/api/2.0/mlflow/{}".format(endpoint), method=method, params=json.loads(body))
+    if token:
+        auth_header = {"Authorization": f"Bearer {token}"}
     else:
-        response = http_request(
-            host_creds=host_creds, endpoint="/api/2.0/mlflow/{}".format(endpoint), method=method, json=json.loads(body))
-    
-    return response.json()
+        auth_header = {}
 
+    list_endpoint = f"{mlflow_host_url}/api/2.0/mlflow/{endpoint}"
+    
+    if method == "GET":
+        response = requests.get(list_endpoint, headers=auth_header, data=json.dumps(body))
+    elif method == "POST":
+        response = requests.post(list_endpoint, headers=auth_header, data=json.dumps(body))
+    else:
+        return {"Invalid Method"}
+
+    return response.text
+
+# COMMAND ----------
+
+# DBTITLE 1,Create Helper Calls for Transition management
 # Accept or reject transition request
 def accept_transition(model_name, version, stage, comment):
     approve_request_body = {'name': model_name,
@@ -220,7 +241,7 @@ def accept_transition(model_name, version, stage, comment):
                             'archive_existing_versions': 'true',
                             'comment': comment}
   
-    mlflow_call_endpoint('transition-requests/approve', 'POST', json.dumps(approve_request_body))
+    mlflow_call_endpoint('transition-requests/approve', 'POST',approve_request_body)
 
 def reject_transition(model_name, version, stage, comment):
     reject_request_body = {'name': model_name,
@@ -228,12 +249,12 @@ def reject_transition(model_name, version, stage, comment):
                            'stage': stage, 
                            'comment': comment}
     
-    mlflow_call_endpoint('transition-requests/reject', 'POST', json.dumps(reject_request_body))
+    mlflow_call_endpoint('transition-requests/reject', 'POST', reject_request_body)
 
 # COMMAND ----------
 
 # If any checks failed, reject and move to Archived
-if all([not(out_df.empty), not(sparkUDF_test.rdd.isEmpty())]): 
+if all([not(out_df.empty), not(batch_test)]): 
     print(f"Accepting transition to {stage}...")
     accept_transition(model_name,
                    latest_model_version,
@@ -251,4 +272,4 @@ else:
 # MAGIC %md
 # MAGIC ## Create/Schedule as manual job
 # MAGIC __DO ONCE__
-# MAGIC [Here](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/330465)
+# MAGIC [Here](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/341239)

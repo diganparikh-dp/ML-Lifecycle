@@ -1,17 +1,14 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
-# MAGIC __TO-DO__: update diagram
 # MAGIC 
 # MAGIC **PART 3b/7 - ML Engineer/DevOps: Local API Testing **
 # MAGIC 1. REST API local testing (using Model Serving) _OPTIONAL_
-# MAGIC 
-# MAGIC _P.S: This notebook can also be triggered automatically every time a Data-Scientist pushes a new BERT or LSTM model version to the local registry_
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC <img src="https://github.com/diganparikh-dp/Images/blob/main/ML%20End%202%20End%20Workflow/MLOps%20end2end%20-%20Corvel_ML.jpg?raw=true" width=860/>
+# MAGIC <img src="https://github.com/diganparikh-dp/Images/blob/main/ML%20End%202%20End%20Workflow/MLOps%20end2end%20-%20Corvel_ML2.jpg?raw=true" width=860/>
 
 # COMMAND ----------
 
@@ -23,55 +20,24 @@
 
 # DBTITLE 1,Create parameters as input 'widgets'
 dbutils.widgets.removeAll()
-dbutils.widgets.text("SAVE_DIR","/dbfs/mnt/oetrta/diganparikh/corvel/corvel_contents", "Global path/URI (ADLS)")
-dbutils.widgets.text("USE_CASE", 'symbeo_doctyping', "Use-Case Name")
-dbutils.widgets.text("PRE_TRAINED_MODEL_NAME","emilyalsentzer/Bio_ClinicalBERT", "Pre-Trained BERT model to load")
-dbutils.widgets.text("MODEL_NAME","DocType_Test", "Model Name")
-dbutils.widgets.text("MLFLOW_CENTRAL_URI","databricks://ml-scope:dp", "Central Model Registry URI")
-dbutils.widgets.dropdown("stage","Staging", ["None", "Archived", "Staging", "Production"], "Transition to:")
-
-# COMMAND ----------
-
-# DBTITLE 1,Import libs/packages of choice
-from datetime import datetime
-
-import os, json, sys, time, random
-import nltk
-from nltk.corpus import stopwords
-
-import mlflow
-
-import keras
-import pandas as pd
-
-import sklearn
-import joblib
-
-import torch
-import numpy as np
-from torch import nn, optim
-from torch.utils.data import Dataset, DataLoader
-import torch.nn.functional as F
-
-from textwrap import wrap
-
-import tensorflow
-from tensorflow.keras.models import load_model
-import transformers
-from transformers import BertModel, BertTokenizer, AdamW, get_linear_schedule_with_warmup, AutoTokenizer, AutoModel
-
-import re
-import pickle
-import warnings
-import matplotlib.pyplot as plt
-import seaborn as sns
+dbutils.widgets.text("MODEL_NAME","DocType_PyFunc_Test", "Model Name")
+dbutils.widgets.dropdown("stage","Staging", ["None", "Archived", "Staging", "Production"], "Stage to Test:")
 
 # COMMAND ----------
 
 # DBTITLE 1,Get latest version number
+import mlflow
+client = mlflow.tracking.MlflowClient()
+
 model_name = dbutils.widgets.get("MODEL_NAME")
-latest_model = client.search_model_versions(f"name='{model_name}'")
-latest_model_version = latest_model[0].version
+
+# Get latest version
+# latest_model = client.search_model_versions(f"name='{model_name}'")
+# latest_model_version = latest_model[0].version
+
+
+# OR Stage
+latest_model_version = dbutils.widgets.get("stage")
 
 # COMMAND ----------
 
@@ -126,3 +92,7 @@ out_df = score_model(test_df, model_name=model_name, version=latest_model_versio
 # COMMAND ----------
 
 display(out_df)
+
+# COMMAND ----------
+
+

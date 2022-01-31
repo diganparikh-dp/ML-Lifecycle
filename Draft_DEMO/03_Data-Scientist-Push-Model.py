@@ -78,6 +78,7 @@ import seaborn as sns
 
 # MAGIC %md
 # MAGIC ### Define artifacts location
+# MAGIC Can be either a global or Temp path
 
 # COMMAND ----------
 
@@ -395,7 +396,7 @@ signature = mlflow.models.infer_signature(
 
 # MAGIC %md
 # MAGIC ### Set MLflow to point to desired server for pushing model
-# MAGIC _using the [Personnal Access Tokens](https://docs.databricks.com/dev-tools/api/latest/authentication.html#token-management) created_
+# MAGIC _using the [Personnal Access Tokens](https://docs.databricks.com/dev-tools/api/latest/authentication.html#token-management) created for [cross-workspace model sharing](https://docs.databricks.com/applications/machine-learning/manage-model-lifecycle/multiple-workspaces.html#set-up-the-api-token-for-a-remote-registry)_
 # MAGIC * DEV ('databricks')
 # MAGIC * QA
 # MAGIC * PROD ('Central Model Registry PAT')
@@ -403,7 +404,7 @@ signature = mlflow.models.infer_signature(
 # COMMAND ----------
 
 # DBTITLE 1,Point to desired  MLFlow Registry
-registry_uri = dbutils.widgets.get("MLFLOW_URI_PAT") # 'databricks' for local
+registry_uri = dbutils.widgets.get("MLFLOW_URI_PAT")
 mlflow.set_registry_uri(registry_uri)
 
 # COMMAND ----------
@@ -424,8 +425,8 @@ with mlflow.start_run(run_name=f"{USE_CASE}_{model_name}"):
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC ### Local API Testing _(OPTIONAL)_
-# MAGIC Enable Model Serving and test payload/response and/or use [test notebook](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#notebook/1390462475107692/command/1390462475107722)
+# MAGIC ## Local API Testing _(OPTIONAL)_
+# MAGIC `ML Engineeer:` Enable Model Serving and test payload/response and/or **use [test notebook](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#notebook/1390462475107692/command/1390462475107722)**
 
 # COMMAND ----------
 
@@ -438,11 +439,11 @@ with mlflow.start_run(run_name=f"{USE_CASE}_{model_name}"):
 # MAGIC 
 # MAGIC Pick last version and request transition to stage parameter
 # MAGIC 
-# MAGIC **Assumes Webhooks were already created [here](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#notebook/1390462475087728/command/1390462475087764)**
+# MAGIC ### Assumes Webhooks were already created using this [notebook](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#notebook/1390462475087728/command/1390462475087764)
 
 # COMMAND ----------
 
-# DBTITLE 1,Helper call for model transition request
+# DBTITLE 1,Helper function for MLflow API call
 import json
 import requests
 
@@ -464,6 +465,9 @@ def mlflow_call_endpoint(endpoint="", method="POST", body="{}", mlflow_host_url=
 
     return response.text
 
+# COMMAND ----------
+
+# DBTITLE 1,Helper call for model transition request
 def request_transition(model_name, version, stage, mlflow_host_url="", token=None):
     transition_request = {
         'name': model_name,
@@ -476,12 +480,16 @@ def request_transition(model_name, version, stage, mlflow_host_url="", token=Non
 
 # COMMAND ----------
 
-# Get Access Token
-token = dbutils.secrets.get(scope="ml-scope", key="dp-token") # PAT for Central Model Registry
-# token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get() # Local
+# DBTITLE 1,Define/Get Access Token
+# token = dbutils.secrets.get(scope="ml-scope", key="dp-token") # PAT for Central Model Registry
+token = dbutils.notebook.entry_point.getDbutils().notebook().getContext().apiToken().get() # Local
 
-# Get latest model version
+# COMMAND ----------
+
+# DBTITLE 1,Get latest model version
 latest_model_version = mlflow.tracking.MlflowClient().search_model_versions(f"name='{model_name}'")[0].version
+
+# COMMAND ----------
 
 request_transition(
     model_name=model_name,
@@ -495,7 +503,11 @@ request_transition(
 
 # MAGIC %md
 # MAGIC **This will trigger the following sequential actions:**
-# MAGIC 1. [Validation job](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/330465) has kicked
+# MAGIC 1. Start [Validation job](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/341239)
 # MAGIC 2. Receive slack notification if validation was succesful
-# MAGIC 3. [AzureDevOps](https://dev.azure.com/diganparikh/ML-DEMO/_release?_a=releases&view=mine&definitionId=1) pipeline [job](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/332018) has kicked
-# MAGIC 4. [MLflow artifact was pushed to AKS](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/332066)
+# MAGIC 3. Start [AzureDevOps](https://dev.azure.com/diganparikh/ML-DEMO/_release?_a=releases&view=mine&definitionId=1) pipeline via [job](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/341258) has kicked
+# MAGIC 4. Push [MLflow artifact to AKS](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/341343)
+
+# COMMAND ----------
+
+
