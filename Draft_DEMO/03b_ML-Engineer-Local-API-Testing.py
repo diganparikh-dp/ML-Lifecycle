@@ -11,7 +11,7 @@
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC <img src="https://raw.githubusercontent.com/diganparikh-dp/Images/main/Corvel%20Future%20Diagram.png" width=860/>
+# MAGIC <img src="https://github.com/diganparikh-dp/Images/blob/main/ML%20End%202%20End%20Workflow/MLOps%20end2end%20-%20Corvel_ML.jpg?raw=true" width=860/>
 
 # COMMAND ----------
 

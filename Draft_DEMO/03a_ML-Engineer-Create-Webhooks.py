@@ -4,9 +4,16 @@
 # MAGIC __WORK_IN_PROGRESS__
 # MAGIC 
 # MAGIC **PART 3a/7 - ML Engineer: Create Model Webhooks**
-# MAGIC 1. Create model **webhooks** 
+# MAGIC 1. Validation job at transition request
+# MAGIC 2. Slack notification at transition acceptance
+# MAGIC 3. AzureDevOps job at transition acceptance
 # MAGIC 
 # MAGIC _P.S: This notebook need to be run only once (interactively or automated) every time a new model gets created in order to append the webhooks into it_
+
+# COMMAND ----------
+
+# MAGIC %md
+# MAGIC <img src="https://github.com/diganparikh-dp/Images/blob/main/ML%20End%202%20End%20Workflow/MLOps%20end2end%20-%20Corvel_ML.jpg?raw=true" width=860/>
 
 # COMMAND ----------
 
@@ -20,8 +27,8 @@
 dbutils.widgets.removeAll()
 dbutils.widgets.text("MODEL_NAME","DocType_Test", "Model Name")
 dbutils.widgets.text("MLFLOW_HOST_URL","https://e2-demo-west.cloud.databricks.com", "Central Model Registry URL")
-dbutils.widgets.text("mlops_job_id","330465", "Job ID (Databricks MLOps Validation):")
-dbutils.widgets.text("azure_job_id","332018", "Job ID (Azure DevOps release pipeline):")
+dbutils.widgets.text("mlops_job_id","333539", "Job ID (Databricks MLOps Validation):")
+dbutils.widgets.text("azure_job_id","333925", "Job ID (Azure DevOps release pipeline):")
 
 # COMMAND ----------
 
@@ -86,8 +93,8 @@ def mlflow_call_endpoint(endpoint="", method="POST", body="{}", mlflow_host_url=
 
 # List
 def list_webhooks(model_name):
-    list_model_webhooks = json.dumps({"model_name": model_name})
-    response = mlflow_call_endpoint("registry-webhooks/list", method = "GET", body = list_model_webhooks, mlflow_host_url=mlflo)
+    list_model_webhooks = {"model_name": model_name}
+    response = mlflow_call_endpoint("registry-webhooks/list", method = "GET", body = list_model_webhooks, mlflow_host_url=mlflow_host_url, token=token)
     
     return(response)
 
@@ -95,7 +102,7 @@ def list_webhooks(model_name):
 def delete_webhooks(webhook_id):
     # Remove a webhook
     response = mlflow_call_endpoint("registry-webhooks/delete", method="DELETE",
-                     body = json.dumps({'id': webhook_id}))
+                     body = {'id': webhook_id}, mlflow_host_url=mlflow_host_url, token=token)
     
     return(response)
 
@@ -104,41 +111,6 @@ def reset_webhooks(model_name):
     if 'webhooks' in whs:
         for wh in whs['webhooks']:
             delete_webhooks(wh['id'])
-
-# COMMAND ----------
-
-list_webhooks("DocType_Test")
-
-# COMMAND ----------
-
-#CREATE HOOK
-create_webhook_endpoint = f"{cmr_host}/api/2.0/mlflow/registry-webhooks/create"
-
-job_id = 333539
-releases_job_spec = {
-  'job_id': job_id,
-  'access_token': cmr_token
-}
-create_webhook_doc = {
-  'model_name': model_name,
-  'events': 'TRANSITION_REQUEST_CREATED',
-  'description': f"{model_name} CI-CD WebHook",
-  'job_spec': releases_job_spec
-}
-response = requests.post( create_webhook_endpoint, headers=auth_header, data=json.dumps(create_webhook_doc) )
-response.content
-
-# COMMAND ----------
-
-#TEST HOOK
-test_webhook_endpoint = f"{cmr_host}/api/2.0/mlflow/registry-webhooks/test"
-
-test_webhook_doc = {
-  'id': '5c5443241c4d4d9b8e944769f5a40e7e',
-  'event': 'MODEL_VERSION_TRANSITIONED_STAGE'
-}
-response = requests.post( test_webhook_endpoint, headers=auth_header, data=json.dumps(test_webhook_doc) )
-response.content
 
 # COMMAND ----------
 
@@ -154,7 +126,7 @@ reset_webhooks(model_name = model_name)
 # COMMAND ----------
 
 # DBTITLE 1,Helper function to create databricks job webhook
-def create_job_webhook(model_name, job_id, host_in=host, token_in=token, events=["TRANSITION_REQUEST_CREATED"], description=""):
+def create_job_webhook(model_name, job_id, host_in=mlflow_host_url, token_in=token, events=["TRANSITION_REQUEST_CREATED"], description=""):
     trigger_job = json.dumps({
       "model_name": model_name,
       "events": events,
@@ -166,7 +138,7 @@ def create_job_webhook(model_name, job_id, host_in=host, token_in=token, events=
         "access_token": token_in
       }
     })
-    response = mlflow_call_endpoint("registry-webhooks/create", method = "POST", body = trigger_job)
+    response = mlflow_call_endpoint("registry-webhooks/create", method = "POST", body = trigger_job, mlflow_host_url=mlflow_host_url, token=token)
     return(response)
 
 # COMMAND ----------
@@ -199,7 +171,7 @@ def create_notification_webhook(model_name, slack_url, events=["MODEL_VERSION_TR
             "url": slack_url
         }
     })
-    response = mlflow_call_endpoint("registry-webhooks/create", method = "POST", body = trigger_slack)
+    response = mlflow_call_endpoint("registry-webhooks/create", method = "POST", body = trigger_slack, mlflow_host_url=mlflow_host_url, token=token)
     
     return(response)
 
@@ -235,4 +207,5 @@ azure_job_id = dbutils.widgets.get("azure_job_id") # This is our 04_ML-Engineer-
 create_job_webhook(model_name = model_name,
                    job_id = azure_job_id,
                    events="MODEL_VERSION_TRANSITIONED_STAGE",
-                   description="Trigger a databricks job which triggers an Azure DevOps pipeline when a model transition is requested.")
+                   description="Trigger a databricks job which triggers an Azure DevOps pipeline when a model transition is requested."
+                  )

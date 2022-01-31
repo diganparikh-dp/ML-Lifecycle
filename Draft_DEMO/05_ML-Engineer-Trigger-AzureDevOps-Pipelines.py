@@ -11,17 +11,16 @@
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC **TO-DO**
-# MAGIC _add diagram_
+# MAGIC <img src="https://github.com/diganparikh-dp/Images/blob/main/ML%20End%202%20End%20Workflow/MLOps%20end2end%20-%20Corvel_ML_DevOps.jpg?raw=true" width=860/>
 
 # COMMAND ----------
 
 # DBTITLE 1,Notebook params
 dbutils.widgets.text("event_message",'{}',"Webhook payload")
-dbutils.widgets.text("org_id",'tristannixon-databricks',"Organization ID")
-dbutils.widgets.text("project_id",'MLOps%20Webinar',"Project ID")
-dbutils.widgets.text("QA_pipeline_id",'4',"Pipeline ID QA (Azure DevOps)")
-dbutils.widgets.text("production_pipeline_id",'3',"Pipeline ID Production (Azure DevOps)")
+dbutils.widgets.text("org_id",'diganparikh',"Organization ID")
+dbutils.widgets.text("project_id",'ML-DEMO',"Project ID")
+dbutils.widgets.text("QA_pipeline_id",'2',"Pipeline ID QA (Azure DevOps)")
+dbutils.widgets.text("production_pipeline_id",'2',"Pipeline ID Production (Azure DevOps)")
 
 # COMMAND ----------
 

@@ -2,8 +2,8 @@
 # MAGIC %md
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
 # MAGIC _WORK_IN_PROGRESS_
-# MAGIC __TO-DO__: 
-# MAGIC * update diagram
+# MAGIC 
+# MAGIC __TO-DO__:
 # MAGIC * Review LSTM training and hyper-params tuning
 # MAGIC 
 # MAGIC **PART 2b/7 - Data-Scientist: Model Training (LSTM)**
@@ -13,7 +13,7 @@
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC <img src="https://raw.githubusercontent.com/diganparikh-dp/Images/main/Corvel%20Future%20Diagram.png" width=860/>
+# MAGIC <img src="https://github.com/diganparikh-dp/Images/blob/main/ML%20End%202%20End%20Workflow/MLOps%20end2end%20-%20Corvel_DS.jpg?raw=true" width=860/>
 
 # COMMAND ----------
 

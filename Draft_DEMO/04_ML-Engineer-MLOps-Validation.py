@@ -8,12 +8,12 @@
 # MAGIC 2. Schema Validation check
 # MAGIC 3. QA check
 # MAGIC 4. Accept Transition _(to requested `stage`)_
-# MAGIC * Create Job and retrieve `JobID` _(DO ONCE)_ `330465`
+# MAGIC * Create Job and retrieve `JobID` _(DO ONCE)_ _(`330465` in field-eng)_
 
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC <img src="https://raw.githubusercontent.com/diganparikh-dp/Images/main/Corvel%20Future%20Diagram.png" width=860/>
+# MAGIC <img src="https://github.com/diganparikh-dp/Images/blob/main/ML%20End%202%20End%20Workflow/MLOps%20end2end%20-%20Corvel_ML2.jpg?raw=true" width=860/>
 
 # COMMAND ----------
 

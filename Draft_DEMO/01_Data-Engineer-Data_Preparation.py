@@ -2,9 +2,6 @@
 # MAGIC %md
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
 # MAGIC 
-# MAGIC __TO-DO__: 
-# MAGIC * update diagram
-# MAGIC 
 # MAGIC **PART 1/7 - Data Engineer/Scientist: Data ingestion/preparation**
 # MAGIC 1. Land extracted documents/pages into single `Raw/BRONZE` table
 # MAGIC 2. Clean text (remove stopwords and noise) and store into `Clean/SILVER` table
@@ -13,7 +10,7 @@
 # COMMAND ----------
 
 # MAGIC %md
-# MAGIC <img src="https://raw.githubusercontent.com/diganparikh-dp/Images/main/Corvel%20Future%20Diagram.png" width=860/>
+# MAGIC <img src="https://github.com/diganparikh-dp/Images/blob/main/ML%20End%202%20End%20Workflow/MLOps%20end2end%20-%20Corvel_DE.jpg?raw=true" width=860/>
 
 # COMMAND ----------
 
