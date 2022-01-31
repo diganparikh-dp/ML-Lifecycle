@@ -23,6 +23,11 @@
 # COMMAND ----------
 
 # MAGIC %md
+# MAGIC <img src="https://raw.githubusercontent.com/diganparikh-dp/Images/main/Corvel%20Future%20Diagram.png" width=860/>
+
+# COMMAND ----------
+
+# MAGIC %md
 # MAGIC ## Environment setup
 # MAGIC Define parameters, install requirement and define context
 

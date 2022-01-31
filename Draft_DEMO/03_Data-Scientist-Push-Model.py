@@ -1,7 +1,6 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
-# MAGIC __TO-DO__: update diagram & add link to Azure DevOps project page
 # MAGIC 
 # MAGIC **PART 3/7 - Data-Scientist/ML Engineer: Push Model to Central Registry **
 # MAGIC 1. Pull independent artifacts from local model registry (BERT & LSTM)
@@ -498,5 +497,5 @@ request_transition(
 # MAGIC **This will trigger the following sequential actions:**
 # MAGIC 1. [Validation job](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/330465) has kicked
 # MAGIC 2. Receive slack notification if validation was succesful
-# MAGIC 3. [AzureDevOps](add link) pipeline [job](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/332018) has kicked
+# MAGIC 3. [AzureDevOps](https://dev.azure.com/diganparikh/ML-DEMO/_release?_a=releases&view=mine&definitionId=1) pipeline [job](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/332018) has kicked
 # MAGIC 4. [MLflow artifact was pushed to AKS](https://e2-demo-field-eng.cloud.databricks.com/?o=1444828305810485#job/332066)
