@@ -18,6 +18,7 @@
 # COMMAND ----------
 
 # DBTITLE 1,Notebook params
+dbutils.widgets.removeAll()
 dbutils.widgets.text("event_message",'{}',"Webhook payload")
 dbutils.widgets.text("org_id",'diganparikh',"Organization ID")
 dbutils.widgets.text("project_id",'ML-DEMO',"Project ID")
@@ -43,12 +44,16 @@ event_message_dict = json.loads(event_message)
 
 # COMMAND ----------
 
+# DBTITLE 1,Get Azure DevOps Token
+devops_token = dbutils.secrets.get(scope='mlops',key='azure_devops_token') # Using secret's API - ENSURE TO USE CORRECT TOKEN
+
+# COMMAND ----------
+
 # DBTITLE 1,Contextual parameters definition
 import base64
 
 org_id = dbutils.widgets.get("org_id")
 project_id = dbutils.widgets.get("project_id")
-devops_token = dbutils.secrets.get(scope='mlops',key='devops_Token')
 
 releases_uri = f"https://vsrm.dev.azure.com/{org_id}/{project_id}/_apis/release/releases?api-version=6.0"
 encoded_token = base64.b64encode(bytes(f":{devops_token}", 'utf-8')).decode("utf-8")
@@ -86,7 +91,7 @@ else:
 
 # COMMAND ----------
 
-trigger_release_pipeline(int(dbutils.widgets.get("QA_pipeline_id")))
+# trigger_release_pipeline(2)
 
 # COMMAND ----------
 

@@ -1,7 +1,10 @@
 # Databricks notebook source
 # MAGIC %md
 # MAGIC # End-To-End MLOps Text Classification example using transfer learning and MLflow
-# MAGIC __WORK_IN_PROGRESS__
+# MAGIC _WORK_IN_PROGRESS_
+# MAGIC 
+# MAGIC **TO-DO:**
+# MAGIC * Review deployment via ACI
 # MAGIC 
 # MAGIC **PART 6/7 - ML Engineer/DevOps: Notebook to push MLflow artifact to AKS** _(scheduled as job to be triggered by Azure DevOps)_
 # MAGIC 1. Pull custom artifacts from central model registry
@@ -94,6 +97,7 @@ test_config = {'deploy-config-file': deployment_config_path}
 
 # MAGIC %md
 # MAGIC ## OPTION 2: [Push to ACI/AKS](https://techcommunity.microsoft.com/t5/azure-ai-blog/machine-learning-at-scale-with-databricks-and-kubernetes/ba-p/3056539)
+# MAGIC via Azure Container Service
 # MAGIC 
 # MAGIC <img src="https://techcommunity.microsoft.com/t5/image/serverpage/image-id/342800i16866D655086C0AD/image-dimensions/866x623?v=v2" width=700/>
 
